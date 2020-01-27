@@ -402,7 +402,7 @@ class Remote:
     credential_path = self.gmailieer.local.credentials_f
 
 
-    store = Storage(credential_path)
+    store = Storage(credential_path, allow_sym=True)
     credentials = store.get()
     if not credentials or credentials.invalid:
       if self.CLIENT_SECRET_FILE is not None:
