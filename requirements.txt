@@ -1,4 +1,5 @@
 google-api-python-client
-oauth2client
 tqdm
+
+-e git+git@github.com:jaycee/oauth2client.git@master#egg=oauth2client
 
