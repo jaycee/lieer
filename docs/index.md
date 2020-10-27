@@ -2,10 +2,11 @@
 
 <img src="https://gauteh.github.io/lieer/demo.png">
 
-This program can pull email and labels (and changes to labels) from your GMail
-account and store them locally in a maildir with the labels synchronized with a
-[notmuch](https://notmuchmail.org/) database. The changes to tags in the
-notmuch database may be pushed back remotely to your GMail account.
+This program can pull, and send, email and labels (and changes to labels) from
+your GMail account and store them locally in a maildir with the labels
+synchronized with a [notmuch](https://notmuchmail.org/) database. The changes
+to tags in the notmuch database may be pushed back remotely to your GMail
+account.
 
 ## Disclaimer
 
@@ -74,7 +75,7 @@ changes of the affected messages.
 $ gmi pull
 ```
 
-the first time you do this, or if a full synchronization is needed it will take longer.
+the first time you do this, or if a full synchronization is needed it will take longer. You can try to use the `--resume` option if you get stuck on getting the metadata and have to abort (this will cause local changes made in the interim to be ignored in the next push).
 
 ## Push
 
@@ -102,6 +103,51 @@ by using `push -f`.
 > Note: If changes are being made on the remote, on a message that is currently being synced with `lieer`, the changes may be overwritten or merged in weird ways.
 
 See below for more [caveats](#caveats).
+
+## Sending
+
+Lieer may be used as a simple stand-in for the `sendmail` MTA. A typical configuration for a MUA send command might be:
+
+```sh
+gmi send -t -C ~/.mail/account.gmail
+```
+
+Like the real sendmail program, the raw message is read from `stdin`.
+
+Most sendmail implementations allow passing additional recipients in additional
+arguments. However, the GMail API only supports the `-t` (`--read-recipients`) mode of
+sendmail, without additional recipients.
+
+We try to support valid combinations from MUAs that make use of recipients
+passed as arguments. Additional recipients are ignored, but validated. The
+following combinations are OK:
+
+ - When `-t` is passed, we need to check for the CLI-passed recipients to be
+   equal or a subset of the ones passed in the headers.
+
+ - When `-t` is not passed, all header-passed recipients need to be provided in
+   the CLI as well.
+
+This avoids silently not sending mail to some recipients (pretending we did),
+or sending mail to recipients we didn't want to send to again.
+
+Lieer will try to associate the sent message with the existing thread if it has
+an `In-Reply-To` header. According to the [Gmail
+API](https://developers.google.com/gmail/api/v1/reference/users/messages/send#request-body)
+the `Subject:` header must also match, but this does not seem to be necessary
+(at least not where just `Re:` has been prepended).
+
+> If the email address in the `From:` header does not match exactly the one of
+> your account, it seems like GMail resets the from to your account _address_
+> only.
+
+Note that the following flags are ignored for `sendmail` compatability:
+
+  - `-f` (ignored, set envelope `From:` yourself)
+  - `-o` (ignored)
+  - `-i` (always implied, not bothered by single `.`'s)
+
+There are instructions for using this in your email client (for example Emacs) in the [wiki](https://github.com/gauteh/lieer/wiki/GNU-Emacs-and-Lieer).
 
 # Settings
 
@@ -191,7 +237,7 @@ the time being, `trash` will be prefered over `spam`, and `spam` over `inbox`.
 
 * `Trash` (capital `T`) is reserved and not allowed, use `trash` (lowercase, see above) to bin messages remotely.
 
-* `archive` is reserved and [not allowed](https://github.com/gauteh/lieer/issues/109). To archive e-mails remove the `inbox` tag.
+* `archive` or `arxiv` are reserved and not allowed; see [issue/109](https://github.com/gauteh/lieer/issues/109) and [issue/171](https://github.com/gauteh/lieer/issues/171). To archive e-mails remove the `inbox` tag.
 
 * Sometimes GMail provides a label identifier on a message for a label that does not exist. If you encounter this [issue](https://github.com/gauteh/lieer/issues/48) you can get around it by using `gmi set --drop-non-existing-labels` and re-try to pull. The labels will now be ignored, and if this message is ever synced back up the unmapped label ID will be removed. You can list labels with `gmi pull -t`.
 

@@ -1,3 +1,20 @@
+# Copyright © 2020  Gaute Hope <eg@gaute.vetsj.com>
+#
+# This file is part of Lieer.
+#
+# Lieer is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import time
 import httplib2
@@ -175,6 +192,21 @@ class Remote:
         return int(msg['historyId'])
 
   @__require_auth__
+  def is_history_id_valid (self, historyId):
+    """
+    Check if the historyId is valid or too old.
+    """
+    try:
+      results = self.service.users().history().list(userId = self.account, startHistoryId = historyId).execute()
+      if 'historyId' in results:
+        return True
+      else:
+        raise Remote.GenericException("no historyId field returned")
+
+    except googleapiclient.errors.HttpError:
+      return False
+
+  @__require_auth__
   def get_history_since (self, start):
     """
     Get all changes since start historyId
@@ -340,11 +372,11 @@ class Remote:
         i = j # reset
         conn_errors += 1
 
-        time.sleep (1)
-
         if conn_errors > self.MAX_CONNECTION_ERRORS:
           print ("too many connection errors")
           raise
+
+        time.sleep (1)
 
       finally:
         # handle batch
@@ -686,4 +718,24 @@ class Remote:
     else:
       return (None, None)
 
+
+  @__require_auth__
+  def send (self, message, threadId = None):
+    """
+    Send message
+
+    message: MIME message as bytes
+
+    Returns:
+
+      Message
+    """
+    import base64
+
+    message = { 'raw': base64.urlsafe_b64encode(message).decode() }
+
+    if threadId is not None:
+      message['threadId'] = threadId
+
+    return self.service.users().messages().send(userId = self.account, body = message).execute()
 
